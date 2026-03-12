@@ -12,6 +12,8 @@
     body { background-color: #f8f9fa; }
     .nav-tabs .nav-link.active { font-weight: bold; color: #0d6efd; }
     .card { border-radius: 12px; box-shadow: 0 4px 6px rgba(0,0,0,0.05); border: none; }
+    /* 微調下拉選單樣式讓它在藍色卡片中更好看 */
+    .date-select { min-width: 80px; text-align: center; cursor: pointer; }
   </style>
 </head>
 <body>
@@ -30,8 +32,17 @@
 
   <div id="section-dashboard">
     <div class="card mb-3 p-3 text-center text-white bg-primary">
-      <h5 class="mb-1" id="dashboardTitle">Loading...</h5>
-      <h2 class="mb-0" id="dashboardTotal">Loading...</h2>
+      <div class="d-flex justify-content-between align-items-center mb-2">
+        <button class="btn btn-light btn-sm text-primary fw-bold px-3" onclick="changeMonth(-1)">◀</button>
+        
+        <div class="d-flex gap-2">
+          <select id="selectYear" class="form-select form-select-sm fw-bold text-primary date-select" onchange="onSelectDateChange()"></select>
+          <select id="selectMonth" class="form-select form-select-sm fw-bold text-primary date-select" onchange="onSelectDateChange()"></select>
+        </div>
+
+        <button class="btn btn-light btn-sm text-primary fw-bold px-3" onclick="changeMonth(1)">▶</button>
+      </div>
+      <h2 class="mb-0 mt-2" id="dashboardTotal">Loading...</h2>
     </div>
 
     <div class="card mb-3 p-3 border-start border-warning border-4">
@@ -52,12 +63,10 @@
           <label class="form-label">Date</label>
           <input type="date" class="form-control" id="inputDate" required>
         </div>
-        
         <div class="mb-3">
           <label class="form-label">Item</label>
           <input type="text" class="form-control" id="inputItem" placeholder="e.g., Dinner" required>
         </div>
-
         <div class="mb-3">
           <label class="form-label">Category</label>
           <select class="form-select" id="inputCategory">
@@ -67,12 +76,10 @@
             <option value="Entertainment">Entertainment (娛樂)</option>
           </select>
         </div>
-
         <div class="mb-3">
           <label class="form-label">Amount</label>
           <input type="number" class="form-control" id="inputAmount" placeholder="0" required>
         </div>
-
         <div class="row mb-3">
           <div class="col-6">
             <label class="form-label">Payer</label>
@@ -90,17 +97,14 @@
             </select>
           </div>
         </div>
-
         <div class="mb-3">
           <label class="form-label">Installment (Months)</label>
           <input type="number" class="form-control" id="inputInstallment" value="1" min="1">
         </div>
-
         <div class="mb-4">
           <label class="form-label">Note</label>
           <input type="text" class="form-control" id="inputNote">
         </div>
-
         <button type="button" class="btn btn-primary w-100 py-2" id="submitBtn" onclick="submitForm()">Submit (新增紀錄)</button>
       </form>
     </div>
@@ -109,18 +113,18 @@
 </div>
 
 <script>
-  // ==========================================
   // 1. 全域變數與設定 (Global Variables & Config)
-  // ==========================================
-  // 這裡已經換成你專屬的 API 網址了！
+  // 已經更新為你最新提供的 GAS URL
   const GAS_URL = "https://script.google.com/macros/s/AKfycbyB_BQWF2FIS-LkLJKI9-a_7d-5CRUNIqgnxLR6XzsXzUnl5akmmU6ggXc9Jfq4mM5ZZg/exec"; 
   let expenseChartInstance = null;
+  
+  let currentViewYear = new Date().getFullYear();
+  let currentViewMonth = new Date().getMonth() + 1;
 
-  // ==========================================
-  // 2. 畫面初始化與頁籤切換 (Initialization & UI)
-  // ==========================================
+  // 2. 畫面初始化與頁籤切換
   window.onload = function() {
     document.getElementById('inputDate').valueAsDate = new Date();
+    initDateSelects(); // 初始化下拉選單選項
     initChart();
     loadDashboardData();
   };
@@ -137,20 +141,61 @@
     }
   }
 
-  // ==========================================
-  // 3. 讀取與渲染 Dashboard (GET Request & Render)
-  // ==========================================
-  async function loadDashboardData() {
-    const now = new Date();
-    const currentYear = now.getFullYear();
-    const currentMonth = now.getMonth() + 1;
+  // === 初始化與連動下拉選單 ===
+  function initDateSelects() {
+    const yearSelect = document.getElementById('selectYear');
+    const monthSelect = document.getElementById('selectMonth');
+    const currentY = new Date().getFullYear();
 
-    const monthNames = ["January", "February", "March", "April", "May", "June", "July", "August", "September", "October", "November", "December"];
-    document.getElementById('dashboardTitle').innerText = `${monthNames[currentMonth - 1]} ${currentYear} Total`;
+    // 建立年份選項 (從前兩年到後五年)
+    for(let y = currentY - 2; y <= currentY + 5; y++) {
+      let opt = document.createElement('option');
+      opt.value = y;
+      opt.text = y;
+      yearSelect.appendChild(opt);
+    }
+
+    // 建立月份選項 (1~12月)
+    const monthNames = ["Jan", "Feb", "Mar", "Apr", "May", "Jun", "Jul", "Aug", "Sep", "Oct", "Nov", "Dec"];
+    for(let m = 1; m <= 12; m++) {
+      let opt = document.createElement('option');
+      opt.value = m;
+      opt.text = m + " (" + monthNames[m-1] + ")";
+      monthSelect.appendChild(opt);
+    }
+  }
+
+  // 處理：直接選擇下拉選單
+  function onSelectDateChange() {
+    currentViewYear = parseInt(document.getElementById('selectYear').value, 10);
+    currentViewMonth = parseInt(document.getElementById('selectMonth').value, 10);
+    loadDashboardData();
+  }
+
+  // 處理：按左右箭頭切換月份
+  function changeMonth(offset) {
+    currentViewMonth += offset;
+    
+    if (currentViewMonth > 12) {
+      currentViewMonth = 1;
+      currentViewYear++;
+    } else if (currentViewMonth < 1) {
+      currentViewMonth = 12;
+      currentViewYear--;
+    }
+    
+    loadDashboardData();
+  }
+
+  // 3. 讀取與渲染 Dashboard
+  async function loadDashboardData() {
+    // 確保下拉選單的顯示值與目前的變數同步
+    document.getElementById('selectYear').value = currentViewYear;
+    document.getElementById('selectMonth').value = currentViewMonth;
     document.getElementById('dashboardTotal').innerText = "Loading...";
 
     try {
-      const fetchUrl = `${GAS_URL}?year=${currentYear}&month=${currentMonth}`;
+      const fetchUrl = `${GAS_URL}?year=${currentViewYear}&month=${currentViewMonth}`;
       const response = await fetch(fetchUrl);
       const result = await response.json();
 
@@ -183,9 +228,7 @@
     }
   }
 
-  // ==========================================
-  // 4. 拆帳結算邏輯 (Settlement Logic)
-  // ==========================================
+  // 4. 拆帳結算邏輯
   function updateSettlementUI(transactions) {
     let peterPaid = 0;
     let fishPaid = 0;
@@ -222,9 +265,7 @@
     }
   }
 
-  // ==========================================
-  // 5. 圖表繪製與更新 (Chart.js Logic)
-  // ==========================================
+  // 5. 圖表繪製與更新
   function initChart() {
     const ctx = document.getElementById('expenseChart').getContext('2d');
     expenseChartInstance = new Chart(ctx, {
@@ -250,9 +291,7 @@
     expenseChartInstance.update();
   }
 
-  // ==========================================
-  // 6. 提交新增紀錄表單 (POST Request)
-  // ==========================================
+  // 6. 提交新增紀錄表單
   async function submitForm() {
     const dateVal = document.getElementById('inputDate').value;
     const itemVal = document.getElementById('inputItem').value;
@@ -297,6 +336,11 @@
 
       if (result.status === "success") {
         alert("Success! Record added.");
+        
+        const addedDate = new Date(dateVal);
+        currentViewYear = addedDate.getFullYear();
+        currentViewMonth = addedDate.getMonth() + 1;
+
         document.getElementById('addForm').reset();
         document.getElementById('inputDate').valueAsDate = new Date();
         
