@@ -1,362 +1,402 @@
 <!DOCTYPE html>
 <html lang="en">
+
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
   <title>Couple Expense Tracker</title>
-  
+
   <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.min.css" rel="stylesheet">
   <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
-  
+
   <style>
-    body { background-color: #f8f9fa; }
-    .nav-tabs .nav-link.active { font-weight: bold; color: #0d6efd; }
-    .card { border-radius: 12px; box-shadow: 0 4px 6px rgba(0,0,0,0.05); border: none; }
+    body {
+      background-color: #f8f9fa;
+    }
+
+    .nav-tabs .nav-link.active {
+      font-weight: bold;
+      color: #0d6efd;
+    }
+
+    .card {
+      border-radius: 12px;
+      box-shadow: 0 4px 6px rgba(0, 0, 0, 0.05);
+      border: none;
+    }
+
     /* 微調下拉選單樣式讓它在藍色卡片中更好看 */
-    .date-select { min-width: 80px; text-align: center; cursor: pointer; }
+    .date-select {
+      min-width: 80px;
+      text-align: center;
+      cursor: pointer;
+    }
   </style>
 </head>
+
 <body>
 
-<div class="container mt-3 mb-5">
-  <h3 class="text-center mb-4">💰 Couple Tracker</h3>
+  <div class="container mt-3 mb-5">
+    <h3 class="text-center mb-4">💰 Couple Tracker</h3>
 
-  <ul class="nav nav-tabs mb-3" id="appTabs">
-    <li class="nav-item">
-      <a class="nav-link active" id="tab-dashboard" href="#" onclick="switchTab('dashboard')">Dashboard (總覽)</a>
-    </li>
-    <li class="nav-item">
-      <a class="nav-link" id="tab-add" href="#" onclick="switchTab('add')">Add Log (記帳)</a>
-    </li>
-  </ul>
+    <ul class="nav nav-tabs mb-3" id="appTabs">
+      <li class="nav-item">
+        <a class="nav-link active" id="tab-dashboard" href="#" onclick="switchTab('dashboard')">Dashboard (總覽)</a>
+      </li>
+      <li class="nav-item">
+        <a class="nav-link" id="tab-add" href="#" onclick="switchTab('add')">Add Log (記帳)</a>
+      </li>
+    </ul>
 
-  <div id="section-dashboard">
-    <div class="card mb-3 p-3 text-center text-white bg-primary">
-      <div class="d-flex justify-content-between align-items-center mb-2">
-        <button class="btn btn-light btn-sm text-primary fw-bold px-3" onclick="changeMonth(-1)">◀</button>
-        
-        <div class="d-flex gap-2">
-          <select id="selectYear" class="form-select form-select-sm fw-bold text-primary date-select" onchange="onSelectDateChange()"></select>
-          <select id="selectMonth" class="form-select form-select-sm fw-bold text-primary date-select" onchange="onSelectDateChange()"></select>
+    <div id="section-dashboard">
+      <div class="card mb-3 p-3 text-center text-white bg-primary">
+        <div class="d-flex justify-content-between align-items-center mb-2">
+          <button class="btn btn-light btn-sm text-primary fw-bold px-3" onclick="changeMonth(-1)">◀</button>
+
+          <div class="d-flex gap-2">
+            <select id="selectYear" class="form-select form-select-sm fw-bold text-primary date-select"
+              onchange="onSelectDateChange()"></select>
+            <select id="selectMonth" class="form-select form-select-sm fw-bold text-primary date-select"
+              onchange="onSelectDateChange()"></select>
+          </div>
+
+          <button class="btn btn-light btn-sm text-primary fw-bold px-3" onclick="changeMonth(1)">▶</button>
         </div>
-
-        <button class="btn btn-light btn-sm text-primary fw-bold px-3" onclick="changeMonth(1)">▶</button>
+        <h2 class="mb-0 mt-2" id="dashboardTotal">Loading...</h2>
+        <div id="dashboardBreakdown" class="mt-2 text-light small" style="opacity: 0.85;">
+          <!-- 會由 JS 填入兩人的各自總額 -->
+        </div>
       </div>
-      <h2 class="mb-0 mt-2" id="dashboardTotal">Loading...</h2>
+
+      <div class="card mb-3 p-3 border-start border-warning border-4">
+        <h6 class="text-secondary mb-2">Settlement (拆帳結算)</h6>
+        <p class="mb-0 fw-bold" id="settlementText">Loading settlement data...</p>
+      </div>
+
+      <div class="card mb-3 p-3">
+        <h6 class="text-center mb-3">Category Breakdown</h6>
+        <canvas id="expenseChart" width="100" height="100"></canvas>
+      </div>
     </div>
 
-    <div class="card mb-3 p-3 border-start border-warning border-4">
-      <h6 class="text-secondary mb-2">Settlement (拆帳結算)</h6>
-      <p class="mb-0 fw-bold" id="settlementText">Loading settlement data...</p>
-    </div>
-
-    <div class="card mb-3 p-3">
-      <h6 class="text-center mb-3">Category Breakdown</h6>
-      <canvas id="expenseChart" width="100" height="100"></canvas>
-    </div>
-  </div>
-
-  <div id="section-add" style="display: none;">
-    <div class="card p-3">
-      <form id="addForm">
-        <div class="mb-3">
-          <label class="form-label">Date</label>
-          <input type="date" class="form-control" id="inputDate" required>
-        </div>
-        <div class="mb-3">
-          <label class="form-label">Item</label>
-          <input type="text" class="form-control" id="inputItem" placeholder="e.g., Dinner" required>
-        </div>
-        <div class="mb-3">
-          <label class="form-label">Category</label>
-          <select class="form-select" id="inputCategory">
-            <option value="Food">Food (飲食)</option>
-            <option value="Daily">Daily (日用)</option>
-            <option value="Transport">Transport (交通)</option>
-            <option value="Entertainment">Entertainment (娛樂)</option>
-          </select>
-        </div>
-        <div class="mb-3">
-          <label class="form-label">Amount</label>
-          <input type="number" class="form-control" id="inputAmount" placeholder="0" required>
-        </div>
-        <div class="row mb-3">
-          <div class="col-6">
-            <label class="form-label">Payer</label>
-            <select class="form-select" id="inputPayer">
-              <option value="Peter">Peter</option>
-              <option value="Fish Yu">Fish Yu</option>
+    <div id="section-add" style="display: none;">
+      <div class="card p-3">
+        <form id="addForm">
+          <div class="mb-3">
+            <label class="form-label">Date</label>
+            <input type="date" class="form-control" id="inputDate" required>
+          </div>
+          <div class="mb-3">
+            <label class="form-label">Item</label>
+            <input type="text" class="form-control" id="inputItem" placeholder="e.g., Dinner" required>
+          </div>
+          <div class="mb-3">
+            <label class="form-label">Category</label>
+            <select class="form-select" id="inputCategory">
+              <option value="Food">Food (飲食)</option>
+              <option value="Daily">Daily (日用)</option>
+              <option value="Transport">Transport (交通)</option>
+              <option value="Entertainment">Entertainment (娛樂)</option>
             </select>
           </div>
-          <div class="col-6">
-            <label class="form-label">Payment</label>
-            <select class="form-select" id="inputPayment">
-              <option value="50/50">50/50 (平分)</option>
-              <option value="All Peter">All Peter</option>
-              <option value="All Fish Yu">All Fish Yu</option>
-            </select>
+          <div class="mb-3">
+            <label class="form-label">Amount</label>
+            <input type="number" class="form-control" id="inputAmount" placeholder="0" required>
           </div>
-        </div>
-        <div class="mb-3">
-          <label class="form-label">Installment (Months)</label>
-          <input type="number" class="form-control" id="inputInstallment" value="1" min="1">
-        </div>
-        <div class="mb-4">
-          <label class="form-label">Note</label>
-          <input type="text" class="form-control" id="inputNote">
-        </div>
-        <button type="button" class="btn btn-primary w-100 py-2" id="submitBtn" onclick="submitForm()">Submit (新增紀錄)</button>
-      </form>
+          <div class="row mb-3">
+            <div class="col-6">
+              <label class="form-label">Payer</label>
+              <select class="form-select" id="inputPayer">
+                <option value="Peter">Peter</option>
+                <option value="Fish Yu">Fish Yu</option>
+              </select>
+            </div>
+            <div class="col-6">
+              <label class="form-label">Payment</label>
+              <select class="form-select" id="inputPayment">
+                <option value="50/50">50/50 (平分)</option>
+                <option value="All Peter">All Peter</option>
+                <option value="All Fish Yu">All Fish Yu</option>
+              </select>
+            </div>
+          </div>
+          <div class="mb-3">
+            <label class="form-label">Installment (Months)</label>
+            <input type="number" class="form-control" id="inputInstallment" value="1" min="1">
+          </div>
+          <div class="mb-4">
+            <label class="form-label">Note</label>
+            <input type="text" class="form-control" id="inputNote">
+          </div>
+          <button type="button" class="btn btn-primary w-100 py-2" id="submitBtn" onclick="submitForm()">Submit
+            (新增紀錄)</button>
+        </form>
+      </div>
     </div>
+
   </div>
 
-</div>
+  <script>
+    // 1. 全域變數與設定 (Global Variables & Config)
+    // 已經更新為你最新提供的 GAS URL
+    const GAS_URL = "https://script.google.com/macros/s/AKfycbyB_BQWF2FIS-LkLJKI9-a_7d-5CRUNIqgnxLR6XzsXzUnl5akmmU6ggXc9Jfq4mM5ZZg/exec";
+    let expenseChartInstance = null;
 
-<script>
-  // 1. 全域變數與設定 (Global Variables & Config)
-  // 已經更新為你最新提供的 GAS URL
-  const GAS_URL = "https://script.google.com/macros/s/AKfycbyB_BQWF2FIS-LkLJKI9-a_7d-5CRUNIqgnxLR6XzsXzUnl5akmmU6ggXc9Jfq4mM5ZZg/exec"; 
-  let expenseChartInstance = null;
-  
-  let currentViewYear = new Date().getFullYear();
-  let currentViewMonth = new Date().getMonth() + 1;
+    let currentViewYear = new Date().getFullYear();
+    let currentViewMonth = new Date().getMonth() + 1;
 
-  // 2. 畫面初始化與頁籤切換
-  window.onload = function() {
-    document.getElementById('inputDate').valueAsDate = new Date();
-    initDateSelects(); // 初始化下拉選單選項
-    initChart();
-    loadDashboardData();
-  };
-
-  function switchTab(tabName) {
-    document.getElementById('section-dashboard').style.display = (tabName === 'dashboard') ? 'block' : 'none';
-    document.getElementById('section-add').style.display = (tabName === 'add') ? 'block' : 'none';
-    
-    document.getElementById('tab-dashboard').classList.toggle('active', tabName === 'dashboard');
-    document.getElementById('tab-add').classList.toggle('active', tabName === 'add');
-
-    if(tabName === 'dashboard') {
+    // 2. 畫面初始化與頁籤切換
+    window.onload = function () {
+      document.getElementById('inputDate').valueAsDate = new Date();
+      initDateSelects(); // 初始化下拉選單選項
+      initChart();
       loadDashboardData();
-    }
-  }
-
-  // === 初始化與連動下拉選單 ===
-  function initDateSelects() {
-    const yearSelect = document.getElementById('selectYear');
-    const monthSelect = document.getElementById('selectMonth');
-    const currentY = new Date().getFullYear();
-
-    // 建立年份選項 (從前兩年到後五年)
-    for(let y = currentY - 2; y <= currentY + 5; y++) {
-      let opt = document.createElement('option');
-      opt.value = y;
-      opt.text = y;
-      yearSelect.appendChild(opt);
-    }
-
-    // 建立月份選項 (1~12月)
-    const monthNames = ["Jan", "Feb", "Mar", "Apr", "May", "Jun", "Jul", "Aug", "Sep", "Oct", "Nov", "Dec"];
-    for(let m = 1; m <= 12; m++) {
-      let opt = document.createElement('option');
-      opt.value = m;
-      opt.text = m + " (" + monthNames[m-1] + ")";
-      monthSelect.appendChild(opt);
-    }
-  }
-
-  // 處理：直接選擇下拉選單
-  function onSelectDateChange() {
-    currentViewYear = parseInt(document.getElementById('selectYear').value, 10);
-    currentViewMonth = parseInt(document.getElementById('selectMonth').value, 10);
-    loadDashboardData();
-  }
-
-  // 處理：按左右箭頭切換月份
-  function changeMonth(offset) {
-    currentViewMonth += offset;
-    
-    if (currentViewMonth > 12) {
-      currentViewMonth = 1;
-      currentViewYear++;
-    } else if (currentViewMonth < 1) {
-      currentViewMonth = 12;
-      currentViewYear--;
-    }
-    
-    loadDashboardData();
-  }
-
-  // 3. 讀取與渲染 Dashboard
-  async function loadDashboardData() {
-    // 確保下拉選單的顯示值與目前的變數同步
-    document.getElementById('selectYear').value = currentViewYear;
-    document.getElementById('selectMonth').value = currentViewMonth;
-    document.getElementById('dashboardTotal').innerText = "Loading...";
-
-    try {
-      const fetchUrl = `${GAS_URL}?year=${currentViewYear}&month=${currentViewMonth}`;
-      const response = await fetch(fetchUrl);
-      const result = await response.json();
-
-      if (result.status === "success") {
-        const transactions = result.data;
-        let totalAmount = 0;
-        let categoryTotals = { "Food": 0, "Daily": 0, "Transport": 0, "Entertainment": 0 };
-
-        transactions.forEach(record => {
-          let amount = Number(record.Amount);
-          totalAmount += amount;
-          
-          if (categoryTotals[record.Category] !== undefined) {
-            categoryTotals[record.Category] += amount;
-          } else {
-            categoryTotals[record.Category] = amount;
-          }
-        });
-
-        document.getElementById('dashboardTotal').innerText = "$ " + totalAmount.toLocaleString();
-        updateChartData(categoryTotals);
-        updateSettlementUI(transactions);
-      } else {
-        console.error("Failed to load data:", result.message);
-        document.getElementById('dashboardTotal').innerText = "Error";
-      }
-    } catch (error) {
-      console.error("Fetch error:", error);
-      document.getElementById('dashboardTotal').innerText = "Error";
-    }
-  }
-
-  // 4. 拆帳結算邏輯
-  function updateSettlementUI(transactions) {
-    let peterPaid = 0;
-    let fishPaid = 0;
-    let peterShare = 0;
-    let fishShare = 0;
-
-    for (let i = 0; i < transactions.length; i++) {
-      let record = transactions[i];
-      let amount = Number(record.Amount);
-
-      if (record.Payer === "Peter") peterPaid += amount;
-      else if (record.Payer === "Fish Yu") fishPaid += amount;
-
-      if (record.Payment === "50/50") {
-        peterShare += (amount / 2);
-        fishShare += (amount / 2);
-      } else if (record.Payment === "All Peter") {
-        peterShare += amount;
-      } else if (record.Payment === "All Fish Yu") {
-        fishShare += amount;
-      }
-    }
-
-    let peterBalance = peterPaid - peterShare;
-    let fishBalance = fishPaid - fishShare;
-    const settlementText = document.getElementById("settlementText");
-
-    if (peterBalance > 0) {
-      settlementText.innerHTML = "Fish Yu needs to pay Peter: <span class='text-danger'>$ " + Math.round(peterBalance).toLocaleString() + "</span>";
-    } else if (fishBalance > 0) {
-      settlementText.innerHTML = "Peter needs to pay Fish Yu: <span class='text-danger'>$ " + Math.round(fishBalance).toLocaleString() + "</span>";
-    } else {
-      settlementText.innerHTML = "<span class='text-success'>All settled up! (互不相欠)</span>";
-    }
-  }
-
-  // 5. 圖表繪製與更新
-  function initChart() {
-    const ctx = document.getElementById('expenseChart').getContext('2d');
-    expenseChartInstance = new Chart(ctx, {
-      type: 'doughnut',
-      data: {
-        labels: [],
-        datasets: [{
-          data: [],
-          backgroundColor: ['#ff9999', '#66b3ff', '#99ff99', '#ffcc99', '#c2c2f0'],
-          borderWidth: 0
-        }]
-      },
-      options: { responsive: true, plugins: { legend: { position: 'bottom' } } }
-    });
-  }
-
-  function updateChartData(categoryTotals) {
-    const labels = Object.keys(categoryTotals);
-    const data = Object.values(categoryTotals);
-
-    expenseChartInstance.data.labels = labels;
-    expenseChartInstance.data.datasets[0].data = data;
-    expenseChartInstance.update();
-  }
-
-  // 6. 提交新增紀錄表單
-  async function submitForm() {
-    const dateVal = document.getElementById('inputDate').value;
-    const itemVal = document.getElementById('inputItem').value;
-    const categoryVal = document.getElementById('inputCategory').value;
-    const amountVal = Number(document.getElementById('inputAmount').value);
-    const payerVal = document.getElementById('inputPayer').value;
-    const paymentVal = document.getElementById('inputPayment').value;
-    const installmentVal = Number(document.getElementById('inputInstallment').value);
-    const noteVal = document.getElementById('inputNote').value;
-
-    if (!dateVal || !itemVal || !amountVal) {
-      alert("Please fill in Date, Item, and Amount.");
-      return;
-    }
-
-    const payload = {
-      action: "post",
-      data: {
-        Date: dateVal,
-        Item: itemVal,
-        Category: categoryVal,
-        Amount: amountVal,
-        note: noteVal,
-        Payer: payerVal,
-        Payment: paymentVal,
-        installment: installmentVal
-      }
     };
 
-    try {
-      const submitBtn = document.getElementById('submitBtn');
-      submitBtn.innerText = "Submitting...";
-      submitBtn.disabled = true;
+    function switchTab(tabName) {
+      document.getElementById('section-dashboard').style.display = (tabName === 'dashboard') ? 'block' : 'none';
+      document.getElementById('section-add').style.display = (tabName === 'add') ? 'block' : 'none';
 
-      const response = await fetch(GAS_URL, {
-        method: "POST",
-        headers: { "Content-Type": "text/plain;charset=utf-8" },
-        body: JSON.stringify(payload)
-      });
+      document.getElementById('tab-dashboard').classList.toggle('active', tabName === 'dashboard');
+      document.getElementById('tab-add').classList.toggle('active', tabName === 'add');
 
-      const result = await response.json();
-
-      if (result.status === "success") {
-        alert("Success! Record added.");
-        
-        const addedDate = new Date(dateVal);
-        currentViewYear = addedDate.getFullYear();
-        currentViewMonth = addedDate.getMonth() + 1;
-
-        document.getElementById('addForm').reset();
-        document.getElementById('inputDate').valueAsDate = new Date();
-        
-        switchTab('dashboard'); 
-      } else {
-        alert("Error: " + result.message);
+      if (tabName === 'dashboard') {
+        loadDashboardData();
       }
-    } catch (error) {
-      alert("Request failed: " + error.toString());
-    } finally {
-      const submitBtn = document.getElementById('submitBtn');
-      submitBtn.innerText = "Submit (新增紀錄)";
-      submitBtn.disabled = false;
     }
-  }
-</script>
+
+    // === 初始化與連動下拉選單 ===
+    function initDateSelects() {
+      const yearSelect = document.getElementById('selectYear');
+      const monthSelect = document.getElementById('selectMonth');
+      const currentY = new Date().getFullYear();
+
+      // 建立年份選項 (從前兩年到後五年)
+      for (let y = currentY - 2; y <= currentY + 5; y++) {
+        let opt = document.createElement('option');
+        opt.value = y;
+        opt.text = y;
+        yearSelect.appendChild(opt);
+      }
+
+      // 建立月份選項 (1~12月)
+      const monthNames = ["Jan", "Feb", "Mar", "Apr", "May", "Jun", "Jul", "Aug", "Sep", "Oct", "Nov", "Dec"];
+      for (let m = 1; m <= 12; m++) {
+        let opt = document.createElement('option');
+        opt.value = m;
+        opt.text = m + " (" + monthNames[m - 1] + ")";
+        monthSelect.appendChild(opt);
+      }
+    }
+
+    // 處理：直接選擇下拉選單
+    function onSelectDateChange() {
+      currentViewYear = parseInt(document.getElementById('selectYear').value, 10);
+      currentViewMonth = parseInt(document.getElementById('selectMonth').value, 10);
+      loadDashboardData();
+    }
+
+    // 處理：按左右箭頭切換月份
+    function changeMonth(offset) {
+      currentViewMonth += offset;
+
+      if (currentViewMonth > 12) {
+        currentViewMonth = 1;
+        currentViewYear++;
+      } else if (currentViewMonth < 1) {
+        currentViewMonth = 12;
+        currentViewYear--;
+      }
+
+      loadDashboardData();
+    }
+
+    // 3. 讀取與渲染 Dashboard
+    async function loadDashboardData() {
+      // 確保下拉選單的顯示值與目前的變數同步
+      document.getElementById('selectYear').value = currentViewYear;
+      document.getElementById('selectMonth').value = currentViewMonth;
+      document.getElementById('dashboardTotal').innerText = "Loading...";
+
+      try {
+        const fetchUrl = `${GAS_URL}?year=${currentViewYear}&month=${currentViewMonth}`;
+        const response = await fetch(fetchUrl);
+        const result = await response.json();
+
+        if (result.status === "success") {
+          const transactions = result.data;
+          let totalAmount = 0;
+          let categoryTotals = { "Food": 0, "Daily": 0, "Transport": 0, "Entertainment": 0 };
+
+          transactions.forEach(record => {
+            let amount = Number(record.Amount);
+            totalAmount += amount;
+
+            if (categoryTotals[record.Category] !== undefined) {
+              categoryTotals[record.Category] += amount;
+            } else {
+              categoryTotals[record.Category] = amount;
+            }
+          });
+
+          document.getElementById('dashboardTotal').innerText = "$ " + totalAmount.toLocaleString();
+          updateChartData(categoryTotals);
+          updateSettlementUI(transactions);
+        } else {
+          console.error("Failed to load data:", result.message);
+          document.getElementById('dashboardTotal').innerText = "Error";
+        }
+      } catch (error) {
+        console.error("Fetch error:", error);
+        document.getElementById('dashboardTotal').innerText = "Error";
+      }
+    }
+
+    // 4. 拆帳結算邏輯
+    function updateSettlementUI(transactions) {
+      let peterPaid = 0;
+      let fishPaid = 0;
+      let peterShare = 0;
+      let fishShare = 0;
+
+      for (let i = 0; i < transactions.length; i++) {
+        let record = transactions[i];
+        let amount = Number(record.Amount);
+
+        if (record.Payer === "Peter") peterPaid += amount;
+        else if (record.Payer === "Fish Yu") fishPaid += amount;
+
+        if (record.Payment === "50/50") {
+          peterShare += (amount / 2);
+          fishShare += (amount / 2);
+        } else if (record.Payment === "All Peter") {
+          peterShare += amount;
+        } else if (record.Payment === "All Fish Yu") {
+          fishShare += amount;
+        }
+      }
+
+      // 更新 Dashboard 上方兩人的各自花費總額
+      const breakdownEl = document.getElementById("dashboardBreakdown");
+      if (breakdownEl) {
+        breakdownEl.innerHTML = `Peter 的應付花費: $${Math.round(peterShare).toLocaleString()} &nbsp;|&nbsp; Fish Yu 應付花費: $${Math.round(fishShare).toLocaleString()}`;
+      }
+
+      let peterBalance = peterPaid - peterShare;
+      let fishBalance = fishPaid - fishShare;
+      const settlementText = document.getElementById("settlementText");
+
+      // 將算式清楚列在 Settlement 卡片中
+      let settlementHtml = `
+      <div class="small text-muted mb-2 lh-sm">
+        <div class="mb-1"><strong>Peter:</strong> 先代墊 $${Math.round(peterPaid).toLocaleString()} - 實際應付 $${Math.round(peterShare).toLocaleString()} = ${peterBalance >= 0 ? '應收回' : '還需付'} $${Math.abs(Math.round(peterBalance)).toLocaleString()}</div>
+        <div><strong>Fish Yu:</strong> 先代墊 $${Math.round(fishPaid).toLocaleString()} - 實際應付 $${Math.round(fishShare).toLocaleString()} = ${fishBalance >= 0 ? '應收回' : '還需付'} $${Math.abs(Math.round(fishBalance)).toLocaleString()}</div>
+      </div>
+      <hr class="my-2" style="border-top: dashed 1px #ccc;">
+    `;
+
+      if (peterBalance > 0) {
+        settlementText.innerHTML = settlementHtml + "👉 Fish Yu 該給 Peter：<span class='text-danger fs-5'>$ " + Math.round(peterBalance).toLocaleString() + "</span>";
+      } else if (fishBalance > 0) {
+        settlementText.innerHTML = settlementHtml + "👉 Peter 該給 Fish Yu：<span class='text-danger fs-5'>$ " + Math.round(fishBalance).toLocaleString() + "</span>";
+      } else {
+        settlementText.innerHTML = settlementHtml + "<span class='text-success fw-bold'>✅ All settled up! (互不相欠)</span>";
+      }
+    }
+
+    // 5. 圖表繪製與更新
+    function initChart() {
+      const ctx = document.getElementById('expenseChart').getContext('2d');
+      expenseChartInstance = new Chart(ctx, {
+        type: 'doughnut',
+        data: {
+          labels: [],
+          datasets: [{
+            data: [],
+            backgroundColor: ['#ff9999', '#66b3ff', '#99ff99', '#ffcc99', '#c2c2f0'],
+            borderWidth: 0
+          }]
+        },
+        options: { responsive: true, plugins: { legend: { position: 'bottom' } } }
+      });
+    }
+
+    function updateChartData(categoryTotals) {
+      const labels = Object.keys(categoryTotals);
+      const data = Object.values(categoryTotals);
+
+      expenseChartInstance.data.labels = labels;
+      expenseChartInstance.data.datasets[0].data = data;
+      expenseChartInstance.update();
+    }
+
+    // 6. 提交新增紀錄表單
+    async function submitForm() {
+      const dateVal = document.getElementById('inputDate').value;
+      const itemVal = document.getElementById('inputItem').value;
+      const categoryVal = document.getElementById('inputCategory').value;
+      const amountVal = Number(document.getElementById('inputAmount').value);
+      const payerVal = document.getElementById('inputPayer').value;
+      const paymentVal = document.getElementById('inputPayment').value;
+      const installmentVal = Number(document.getElementById('inputInstallment').value);
+      const noteVal = document.getElementById('inputNote').value;
+
+      if (!dateVal || !itemVal || !amountVal) {
+        alert("Please fill in Date, Item, and Amount.");
+        return;
+      }
+
+      const payload = {
+        action: "post",
+        data: {
+          Date: dateVal,
+          Item: itemVal,
+          Category: categoryVal,
+          Amount: amountVal,
+          note: noteVal,
+          Payer: payerVal,
+          Payment: paymentVal,
+          installment: installmentVal
+        }
+      };
+
+      try {
+        const submitBtn = document.getElementById('submitBtn');
+        submitBtn.innerText = "Submitting...";
+        submitBtn.disabled = true;
+
+        const response = await fetch(GAS_URL, {
+          method: "POST",
+          headers: { "Content-Type": "text/plain;charset=utf-8" },
+          body: JSON.stringify(payload)
+        });
+
+        const result = await response.json();
+
+        if (result.status === "success") {
+          alert("Success! Record added.");
+
+          const addedDate = new Date(dateVal);
+          currentViewYear = addedDate.getFullYear();
+          currentViewMonth = addedDate.getMonth() + 1;
+
+          document.getElementById('addForm').reset();
+          document.getElementById('inputDate').valueAsDate = new Date();
+
+          switchTab('dashboard');
+        } else {
+          alert("Error: " + result.message);
+        }
+      } catch (error) {
+        alert("Request failed: " + error.toString());
+      } finally {
+        const submitBtn = document.getElementById('submitBtn');
+        submitBtn.innerText = "Submit (新增紀錄)";
+        submitBtn.disabled = false;
+      }
+    }
+  </script>
 
 </body>
+
 </html>
