@@ -1,5 +1,7 @@
 # 💰 Couple Expense Tracker (情侶專屬記帳系統)
 
+fronted url : https://rookiepanislearning.github.io/Daily/
+
 ## 1. 產品介紹 (About This Project)
 
 這是一個專為 Peter 與 Fish Yu 設計的專屬記帳系統，旨在解決我們日常開銷分攤與大筆金額分期的痛點，讓每個月底的結算變得自動且透明。
